@@ -1,0 +1,38 @@
+import { redirect } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { Button } from "@/components/ui/button";
+
+export default async function ProtectedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const session = await getServerSession(authOptions);
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground dark">
+      <header className="bg-card shadow-sm border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            {session?.user?.name ? `Hello, ${session.user.name}` : "Dashboard"}
+          </h1>
+          <Button
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            Sign Out
+          </Button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {children}
+      </main>
+    </div>
+  );
+}
