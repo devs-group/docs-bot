@@ -129,7 +129,7 @@ export function ChatbotTester({ chatbotId }: ChatbotTesterProps) {
                   }`}
                 >
                   <Avatar
-                    className={`h-8 w-8 ${
+                    className={`h-8 w-8 flex items-center justify-center ${
                       message.role === "user" ? "bg-primary" : "bg-secondary"
                     }`}
                   >

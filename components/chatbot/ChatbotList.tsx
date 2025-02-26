@@ -6,13 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, MessageSquare } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,18 +16,11 @@ import {
 import { ChatbotTester } from "./ChatbotTester";
 import { MoreVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
-
-interface Chatbot {
-  id: string;
-  name: string;
-  createdAt: string;
-  modelName: string;
-  sources: { type: string; path: string }[];
-}
+import { ChatbotData } from "@/db/schema";
 
 export function ChatbotList() {
   const router = useRouter();
-  const [chatbots, setChatbots] = useState<Chatbot[]>([]);
+  const [chatbots, setChatbots] = useState<ChatbotData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedChatbotId, setSelectedChatbotId] = useState<string | null>(
     null,
@@ -85,32 +72,6 @@ export function ChatbotList() {
     );
   };
 
-  const generateNameFromSources = (
-    sources: { type: string; path: string }[],
-  ) => {
-    if (!sources || sources.length === 0) return "Unnamed Chatbot";
-
-    const sourceNames = sources.map((source) => {
-      if (source.type === "pdf") {
-        // Extract filename from path
-        const parts = source.path.split("/");
-        return parts[parts.length - 1];
-      } else if (source.type === "url") {
-        // Try to extract domain from URL
-        try {
-          const url = new URL(source.path);
-          return url.hostname;
-        } catch {
-          return source.path;
-        }
-      }
-      return source.type;
-    });
-
-    if (sourceNames.length === 1) return sourceNames[0];
-    return `${sourceNames[0]} and ${sourceNames.length - 1} more`;
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -154,8 +115,8 @@ export function ChatbotList() {
               <MessageSquare className="h-12 w-12 text-muted-foreground" />
               <h3 className="text-lg font-medium">No chatbots yet</h3>
               <p className="text-sm text-muted-foreground max-w-md">
-                You haven't created any chatbots yet. Create your first chatbot
-                by clicking the "New Chatbot" button above.
+                You have not created any chatbots yet. Create your first chatbot
+                by clicking the New Chatbot button above.
               </p>
               <Button
                 onClick={navigateToCreate}
@@ -177,7 +138,7 @@ export function ChatbotList() {
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl truncate">
-                    {chatbot.name || generateNameFromSources(chatbot.sources)}
+                    {chatbot.name}
                   </CardTitle>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -186,21 +147,6 @@ export function ChatbotList() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setSelectedChatbotId(chatbot.id);
-                          setTestDialogOpen(true);
-                        }}
-                      >
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Test
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => navigateToEdit(chatbot.id)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => deleteChatbot(chatbot.id)}
@@ -215,10 +161,10 @@ export function ChatbotList() {
               <CardContent className="pb-4">
                 <div className="space-y-2">
                   <div className="flex items-center text-xs text-muted-foreground">
-                    <span>Created: {formatDate(chatbot.createdAt)}</span>
+                    <span>Created: {formatDate(chatbot.createdAt.toString())}</span>
                   </div>
                   <div className="flex items-center text-xs text-muted-foreground">
-                    <span>Model: {chatbot.modelName}</span>
+                    <span>Model: {chatbot.config.modelName}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {chatbot.sources.map((source, index) => (
@@ -262,16 +208,14 @@ export function ChatbotList() {
         </div>
       )}
 
-      {/* Keep the test dialog for testing directly from the list */}
       <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] sm:h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Test Chatbot</DialogTitle>
-            <DialogDescription>
-              Chat with your AI assistant to test how it responds.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedChatbotId && <ChatbotTester chatbotId={selectedChatbotId} />}
+        <DialogContent>
+          <DialogTitle>Chatbot</DialogTitle>
+          <div className="p-4">
+            {selectedChatbotId && (
+              <ChatbotTester chatbotId={selectedChatbotId} />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

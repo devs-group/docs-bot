@@ -4,8 +4,8 @@ import { createChatBot } from "@/lib/chatbot";
 import { storeChatbot } from "@/lib/storage";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Adjust this path as needed
-import { Source } from "@/types/chatbot";
 import { v4 as uuidv4 } from "uuid";
+import { ChatbotSource } from "@/types/chatbot";
 
 // Helper function to normalize URLs
 function normalizeUrl(url: string): string {
@@ -24,35 +24,30 @@ export async function POST(req: NextRequest) {
     }
 
     const { fields, files } = await parseFormData(req);
-    const sources: Source[] = [];
+    const sources: ChatbotSource[] = [];
 
-    // Process uploaded PDF files
-    for (const file of files) {
-      if (file.name.toLowerCase().endsWith(".pdf")) {
-        sources.push({
-          type: "pdf",
-          path: file.path,
-        });
+    if (files) {
+      for (const file of files) {
+        if (file.name.toLowerCase().endsWith(".pdf")) {
+          sources.push({
+            type: "pdf",
+            path: file.path,
+          });
+        }
       }
     }
 
-    // Process URLs - ensure they're normalized
+    // Process URLs (key: "urls")
     const urls = fields.urls;
     if (urls) {
-      if (Array.isArray(urls)) {
-        for (const url of urls) {
-          if (url.trim()) {
-            sources.push({
-              type: "url",
-              path: normalizeUrl(url.trim()),
-            });
-          }
+      const urlsArray = Array.isArray(urls) ? urls : [urls];
+      for (const url of urlsArray) {
+        if (url.trim()) {
+          sources.push({
+            type: "url",
+            path: normalizeUrl(url.trim()),
+          });
         }
-      } else if (typeof urls === "string" && urls.trim()) {
-        sources.push({
-          type: "url",
-          path: normalizeUrl(urls.trim()),
-        });
       }
     }
 
@@ -63,21 +58,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extract model and custom prompt from request
-    const modelName = fields.model || "gpt-4o-mini";
-    const customPrompt = fields.customPrompt || undefined;
-    const name = (fields.name as string) || "";
+    // Extract other fields
+    const name = fields.name ? String(fields.name) : "";
+    const modelName = fields.model ? String(fields.model) : "gpt-4o-mini";
+    const customPrompt = fields.customPrompt
+      ? String(fields.customPrompt)
+      : undefined;
 
     const chatbotId = uuidv4();
-    const chain = await createChatBot(sources, {
-      modelName: modelName as string,
-      customPrompt: customPrompt as string | undefined,
+    const chain = await createChatBot(sources, chatbotId, {
+      modelName,
+      customPrompt,
     });
 
     // Save configuration along with chatbot
-    storeChatbot(chatbotId, name, session.user.id, chain, sources, {
-      modelName: modelName as string,
-      customPrompt: customPrompt as string | undefined,
+    await storeChatbot(chatbotId, name, session.user.id, chain, sources, {
+      modelName,
+      customPrompt,
     });
 
     return NextResponse.json({
@@ -96,7 +93,7 @@ export async function POST(req: NextRequest) {
 // Increase the default body size limit for file uploads
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: false, // Required for parseFormData
     responseLimit: "100mb",
   },
 };

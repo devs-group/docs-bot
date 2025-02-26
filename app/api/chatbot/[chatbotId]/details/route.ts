@@ -30,18 +30,8 @@ export async function GET(
       );
     }
 
-    // Format the response to include only necessary data
-    const formattedChatbot = {
-      id: chatbotId,
-      name: chatbot.name || "",
-      modelName: chatbot.config.modelName,
-      customPrompt: chatbot.config.customPrompt,
-      sources: chatbot.sources,
-      createdAt: chatbot.createdAt,
-    };
-
     return NextResponse.json({
-      chatbot: formattedChatbot,
+      chatbot,
     });
   } catch (error) {
     console.error("Error fetching chatbot details:", error);

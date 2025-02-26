@@ -32,7 +32,7 @@ export function UrlInput({ urls, setUrls, isDisabled, readOnly = false }: UrlInp
   return (
     <div>
       <Label className="text-sm font-medium text-foreground">
-        {readOnly ? "URL Sources" : "Add URLs (Optional)"}
+        {readOnly ? "URL Sources" : "Add URLs"}
       </Label>
       
       {!readOnly && (

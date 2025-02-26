@@ -15,6 +15,8 @@ import { CurlCommandDisplay } from "./CurlCommandDisplay";
 import { ModelSelector } from "./ModelSelector";
 import { PromptEditor } from "./PromptEditor";
 import { AVAILABLE_MODELS, DEFAULT_PROMPT_TEMPLATE } from "@/lib/constants";
+import { ChatbotData } from "@/db/schema";
+import { ChatbotSource } from "@/types/chatbot";
 
 interface ChatbotCreationFormProps {
   existingChatbotId?: string; // If provided, we're in edit mode
@@ -45,7 +47,7 @@ export function ChatbotCreationForm({
 
   // Load existing chatbot data if in edit mode
   useEffect(() => {
-    if (isEditMode && existingChatbotId) {
+    if (existingChatbotId) {
       loadExistingChatbot(existingChatbotId);
     }
   }, [existingChatbotId, isEditMode]);
@@ -54,18 +56,19 @@ export function ChatbotCreationForm({
     setIsLoading(true);
     try {
       const response = await axios.get(`/api/chatbot/${id}/details`);
-      const data = response.data.chatbot;
+      const data = response.data.chatbot as ChatbotData;
 
       // Set the form fields
       setChatbotName(data.name || "");
-      setSelectedModel(data.modelName || "gpt-4o-mini");
-      setCustomPrompt(data.customPrompt || DEFAULT_PROMPT_TEMPLATE);
+      setSelectedModel(data.config.modelName || "gpt-4o-mini");
+      setCustomPrompt(data.config.customPrompt || DEFAULT_PROMPT_TEMPLATE);
 
-      // In edit mode, we can't change sources, but we'll display them
+      // In edit mode, we can't change sources at the moment, but we'll display them.
+      // This is still a TODO.
       if (data.sources) {
         const urlSources = data.sources
-          .filter((source: any) => source.type === "url")
-          .map((source: any) => source.path);
+          .filter((source: ChatbotSource) => source.type === "url")
+          .map((source: ChatbotSource) => source.path);
         setUrls(urlSources);
       }
 
@@ -119,7 +122,7 @@ export function ChatbotCreationForm({
 
         // Add files and URLs
         files.forEach((file) => formData.append("pdfs", file));
-        urls.forEach((url) => formData.append(`urls[]`, url));
+        urls.forEach((url) => formData.append("urls", url));
 
         // Add other fields
         formData.append("name", chatbotName);

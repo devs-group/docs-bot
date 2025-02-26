@@ -1,9 +1,21 @@
-import { pgTable, text, timestamp, uuid, json } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  json,
+  vector,
+  index,
+} from "drizzle-orm/pg-core";
 import { InferModel } from "drizzle-orm";
+import { ChatbotChain, ChatbotConfig, ChatbotSource } from "@/types/chatbot";
 
-export type ChatbotData = InferModel<typeof chatbots>;
+export type ChatbotData = InferModel<typeof chatbots> & {
+  config: ChatbotConfig;
+  sources: ChatbotSource[];
+  chain: ChatbotChain;
+};
 
-// NextAuth requires a few tables for session management
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
@@ -46,17 +58,27 @@ export const verificationTokens = pgTable("verification_tokens", {
   expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
-export const chatbots = pgTable("chatbots", {
-  id: uuid("id").primaryKey().defaultRandom(), // Ensure ID is always generated
-  userId: uuid("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  chain: json("chain").notNull().default("{}"),
-  config: json("config").notNull().default("{}"),
-  sources: json("sources").notNull().default("[]"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const chatbots = pgTable(
+  "chatbots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(), // Ensure ID is always generated
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    chain: json("chain").notNull().default("{}"),
+    config: json("config").notNull().default("{}"),
+    sources: json("sources").notNull().default("[]"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    embedding: vector("embedding", { dimensions: 1536 }),
+  },
+  (table) => [
+    index("embeddingIndex").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops"),
+    ),
+  ],
+);
 
 export const chatbotSources = pgTable("chatbot_sources", {
   id: uuid("id").primaryKey().defaultRandom(),
