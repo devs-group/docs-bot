@@ -21,11 +21,10 @@ import {
   SelectGroup,
   SelectLabel
 } from "@/components/ui/select";
-import { ChatbotSource } from "@/types/chatbot";
-import { v4 as uuidv4 } from "uuid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VoicePromptEditor } from "./VoicePromptEditor";
 import { Download } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // ElevenLabs voices
 const AVAILABLE_VOICES = [
@@ -82,6 +81,8 @@ export function TwoStepVoiceGenerationForm({
   const [selectedVoice, setSelectedVoice] = useState(initialData?.voiceId || AVAILABLE_VOICES[0].id);
   const [contentLength, setContentLength] = useState(initialData?.length || 1); // 1-5 minutes
   const [audioUrl, setAudioUrl] = useState<string | null>(initialData?.audioUrl || null);
+  
+  const router = useRouter()
   
   // Custom system prompt
   const [customPrompt, setCustomPrompt] = useState(
@@ -238,9 +239,11 @@ export function TwoStepVoiceGenerationForm({
         headers: { "Content-Type": "multipart/form-data" },
       });
       
-      if (response.data.id) {
+      const { voiceId, audioUrl } = response.data;
+
+      if (voiceId && audioUrl) {
         toast.success("Voice content generated successfully!");
-        // router.push("/dashboard/voice");
+        router.push("/dashboard/voice");
       } else {
         toast.error("Failed to generate voice content. Please try again.");
       }
