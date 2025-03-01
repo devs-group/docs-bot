@@ -1,7 +1,7 @@
 import { ConversationalRetrievalQAChain } from "langchain/chains";
 
 export interface ChatbotSource {
-  type: "pdf" | "url" | "text";
+  type: "pdf" | "url" | "text" | "file" | "md" | "markdown" | "txt" | "json";
   path: string;
 }
 

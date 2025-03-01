@@ -9,6 +9,7 @@ import { Document } from "@langchain/core/documents";
 import { DEFAULT_PROMPT_TEMPLATE } from "./constants";
 import { ChatbotConfig, ChatbotSource } from "@/types/chatbot";
 import { Pool } from "pg";
+import * as fs from 'fs/promises';
 
 // PostgreSQL configuration for PGVectorStore
 const pgConfig = {
@@ -49,20 +50,40 @@ export async function createChatBot(
   });
 
   const allDocs: Document[] = [];
+  let loadErrors = 0;
+  
   for (const source of sources) {
     try {
       const docs = await loadDocument(source);
+      
+      // Check if this is an error document
+      const hasErrorDocs = docs.some(doc => doc.metadata.error === true);
+      if (hasErrorDocs) {
+        loadErrors++;
+      }
+      
       // Tag each document with chatbotId in metadata
       docs.forEach((doc) => {
         doc.metadata.chatbotId = chatbotId;
       });
+      
       allDocs.push(...docs);
     } catch (error) {
       console.error(`Error loading source ${source.path}:`, error);
+      loadErrors++;
+      
+      // Add a placeholder document for the failed source
+      allDocs.push(
+        new Document({
+          pageContent: `Error loading source: ${source.path}. The file may be in an unsupported format or corrupted.`,
+          metadata: { source: source.path, chatbotId, error: true },
+        })
+      );
     }
   }
 
-  if (allDocs.length === 0) {
+  // Only throw an error if ALL documents failed to load properly
+  if (loadErrors === sources.length) {
     throw new Error("No documents were successfully loaded");
   }
 
@@ -124,7 +145,13 @@ async function loadDocument(source: ChatbotSource): Promise<Document[]> {
         return await pdfLoader.load();
       } catch (error) {
         console.error(`Error loading PDF ${source.path}:`, error);
-        throw error;
+        // Return an empty document with an error message instead of throwing
+        return [
+          new Document({
+            pageContent: `Error loading PDF file: ${source.path}. The file may be corrupted or in an unsupported format.`,
+            metadata: { source: source.path, error: true },
+          }),
+        ];
       }
     case "url":
       try {
@@ -149,8 +176,52 @@ async function loadDocument(source: ChatbotSource): Promise<Document[]> {
         ];
       } catch (error) {
         console.error(`Error loading URL ${source.path}:`, error);
-        throw error;
+        // Return an empty document with an error message instead of throwing
+        return [
+          new Document({
+            pageContent: `Error loading URL: ${source.path}. The URL may be inaccessible or invalid.`,
+            metadata: { source: source.path, error: true },
+          }),
+        ];
       }
+    case "text":
+    case "md":
+    case "markdown":
+    case "txt":
+    case "json":
+      try {
+        // For text-based files, read the content directly
+        const content = await fs.readFile(source.path, 'utf-8');
+        return [
+          new Document({
+            pageContent: content,
+            metadata: { source: source.path },
+          }),
+        ];
+      } catch (error) {
+        console.error(`Error loading text file ${source.path}:`, error);
+        // Return an empty document with an error message instead of throwing
+        return [
+          new Document({
+            pageContent: `Error loading file: ${source.path}. The file may be in an unsupported format or corrupted.`,
+            metadata: { source: source.path, error: true },
+          }),
+        ];
+      }
+    case "docx":
+    case "doc":
+    case "xlsx":
+    case "xls":
+    case "pptx":
+    case "ppt":
+    case "file":
+      // For binary files, return a placeholder document
+      return [
+        new Document({
+          pageContent: `This is a binary file (${source.path}) that cannot be directly processed. Please extract the text content manually and use the direct text input option for better results.`,
+          metadata: { source: source.path, binary: true },
+        }),
+      ];
     default:
       throw new Error(`Unsupported source type: ${source.type}`);
   }

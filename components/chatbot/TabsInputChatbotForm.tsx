@@ -4,6 +4,7 @@ import { FormEvent, useState, useEffect } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea"; // Import Textarea
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -43,7 +44,8 @@ export function TabsInputChatbotForm({
   );
   const [customPrompt, setCustomPrompt] = useState(DEFAULT_PROMPT_TEMPLATE);
   const [sourcesReadOnly, setSourcesReadOnly] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pdf" | "url">("pdf");
+  const [activeTab, setActiveTab] = useState<"pdf" | "url" | "text">("pdf");
+  const [directText, setDirectText] = useState<string>("");
 
   const isEditMode = !!existingChatbotId;
 
@@ -100,7 +102,7 @@ export function TabsInputChatbotForm({
     // Validate form based on mode
     if (!isEditMode) {
       if (activeTab === "pdf" && files.length === 0) {
-        toast.error("Please upload at least one PDF file.", {
+        toast.error("Please upload at least one document file.", {
           style: {
             background: "hsl(var(--destructive))",
             color: "hsl(var(--destructive-foreground))",
@@ -111,6 +113,16 @@ export function TabsInputChatbotForm({
       
       if (activeTab === "url" && urls.length === 0) {
         toast.error("Please add at least one URL.", {
+          style: {
+            background: "hsl(var(--destructive))",
+            color: "hsl(var(--destructive-foreground))",
+          },
+        });
+        return;
+      }
+
+      if (activeTab === "text" && !directText.trim()) {
+        toast.error("Please enter some text.", {
           style: {
             background: "hsl(var(--destructive))",
             color: "hsl(var(--destructive-foreground))",
@@ -151,6 +163,10 @@ export function TabsInputChatbotForm({
         
         if (activeTab === "url") {
           urls.forEach((url) => formData.append("urls", url));
+        }
+
+        if (activeTab === "text") {
+          formData.append("text", directText);
         }
 
         // Add other fields
@@ -258,11 +274,12 @@ export function TabsInputChatbotForm({
               <Tabs 
                 value={activeTab} 
                 className="w-full"
-                onValueChange={(value) => setActiveTab(value as "pdf" | "url")}
+                onValueChange={(value) => setActiveTab(value as "pdf" | "url" | "text")}
               >
-                <TabsList className="grid grid-cols-2 w-full">
-                  <TabsTrigger value="pdf">PDF Document</TabsTrigger>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="pdf">Documents</TabsTrigger>
                   <TabsTrigger value="url">Website URL</TabsTrigger>
+                  <TabsTrigger value="text">Direct Text</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="pdf" className="pt-4">
@@ -280,6 +297,17 @@ export function TabsInputChatbotForm({
                     isDisabled={isSubmitting}
                   />
                 </TabsContent>
+                
+                <TabsContent value="text" className="pt-4">
+                  <Textarea
+                    id="direct-text"
+                    value={directText}
+                    onChange={(e) => setDirectText(e.target.value)}
+                    className="bg-background border-border text-foreground min-h-[200px]"
+                    placeholder="Enter your text here"
+                    disabled={isSubmitting}
+                  />
+                </TabsContent>
               </Tabs>
             </div>
           )}
@@ -291,9 +319,10 @@ export function TabsInputChatbotForm({
                 Content Sources (Read-only)
               </Label>
               <Tabs value={activeTab} className="w-full">
-                <TabsList className="grid grid-cols-2 w-full">
-                  <TabsTrigger value="pdf" disabled>PDF Documents</TabsTrigger>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="pdf" disabled>Documents</TabsTrigger>
                   <TabsTrigger value="url" disabled>Website URLs</TabsTrigger>
+                  <TabsTrigger value="text" disabled>Direct Text</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="pdf" className="pt-4">
@@ -310,6 +339,17 @@ export function TabsInputChatbotForm({
                     setUrls={setUrls}
                     isDisabled={true}
                     readOnly={true}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="text" className="pt-4">
+                  <Textarea
+                    id="direct-text"
+                    value={directText}
+                    onChange={(e) => setDirectText(e.target.value)}
+                    className="bg-background border-border text-foreground min-h-[200px]"
+                    placeholder="Enter your text here"
+                    disabled={true}
                   />
                 </TabsContent>
               </Tabs>

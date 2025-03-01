@@ -17,7 +17,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  SelectGroup,
+  SelectLabel
 } from "@/components/ui/select";
 import { ChatbotSource } from "@/types/chatbot";
 import { v4 as uuidv4 } from "uuid";
@@ -46,7 +48,7 @@ interface TwoStepVoiceGenerationFormProps {
     content?: string;
     voiceId?: string;
     length?: number;
-    sourceType?: "pdf" | "url";
+    sourceType?: "pdf" | "url" | "text";
     sourcePath?: string;
     audioUrl?: string;
   };
@@ -66,8 +68,9 @@ export function TwoStepVoiceGenerationForm({
   // Source inputs
   const [urls, setUrls] = useState<string[]>(initialData?.sourceType === "url" && initialData.sourcePath ? [initialData.sourcePath] : []);
   const [files, setFiles] = useState<File[]>([]);
-  const [inputType, setInputType] = useState<"pdf" | "url">(initialData?.sourceType === "url" ? "url" : "pdf");
-  
+  const [inputType, setInputType] = useState<"pdf" | "url" | "text">(initialData?.sourceType === "url" ? "url" : "pdf");
+  const [directText, setDirectText] = useState<string>("");
+
   // Voice content
   const [voiceName, setVoiceName] = useState(initialData?.name || "");
   const [contentText, setContentText] = useState(initialData?.content || "");
@@ -92,6 +95,11 @@ export function TwoStepVoiceGenerationForm({
       return false;
     }
     
+    if (inputType === "text" && !directText.trim()) {
+      toast.error("Please enter some text.");
+      return false;
+    }
+    
     return true;
   };
 
@@ -110,41 +118,48 @@ export function TwoStepVoiceGenerationForm({
   };
 
   // Handle text generation
-  const handleGenerateText = async (e: FormEvent) => {
-    e.preventDefault();
-    
+  const handleGenerateText = async () => {
     if (!validateSourceStep()) return;
     
     setIsGeneratingText(true);
     
     try {
-      // Create form data
       const formData = new FormData();
       
       // Add files or URLs based on the selected input type
       if (inputType === "pdf") {
         files.forEach((file) => formData.append("pdfs", file));
-      } else {
+      } else if (inputType === "url") {
         urls.forEach((url) => formData.append("urls", url));
+      } else if (inputType === "text") {
+        formData.append("directText", directText);
       }
       
       // Add length parameter
-      formData.append("length", contentLength.toString());
+      formData.append("length", String(contentLength));
       
-      // Add custom prompt
-      formData.append("customPrompt", customPrompt);
+      // Add custom prompt if provided
+      if (customPrompt.trim()) {
+        formData.append("customPrompt", customPrompt);
+      }
       
-      const response = await axios.post(`/api/voice/generate-text`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const response = await axios.post("/api/voice/generate-text", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
       
-      setContentText(response.data.summary);
-      setCurrentStep("content");
-      
-      toast.success("Text summary generated successfully!");
+      if (response.data.summary) {
+        setContentText(response.data.summary);
+        setCurrentStep("content");
+        
+        toast.success("Text summary generated successfully!");
+      } else {
+        toast.error("Failed to generate text summary. Please try again.");
+      }
     } catch (error) {
-      console.error("Error generating text summary:", error);
-      toast.error("Failed to generate text summary. Please try again.");
+      console.error("Error generating text:", error);
+      toast.error("An error occurred while generating the text summary.");
     } finally {
       setIsGeneratingText(false);
     }
@@ -163,8 +178,10 @@ export function TwoStepVoiceGenerationForm({
       // Add files or URLs based on the selected input type
       if (inputType === "pdf") {
         files.forEach((file) => formData.append("pdfs", file));
-      } else {
+      } else if (inputType === "url") {
         urls.forEach((url) => formData.append("urls", url));
+      } else if (inputType === "text") {
+        formData.append("text", directText);
       }
       
       // Add length parameter
@@ -189,45 +206,42 @@ export function TwoStepVoiceGenerationForm({
   };
 
   // Handle voice generation
-  const handleGenerateVoice = async (e: FormEvent) => {
-    e.preventDefault();
-    
+  const handleGenerateVoice = async () => {
     if (!validateContentStep()) return;
     
     setIsGeneratingVoice(true);
     
     try {
-      // Create form data
       const formData = new FormData();
       
-      // Add content fields
+      // Add voice content details
       formData.append("name", voiceName);
       formData.append("content", contentText);
       formData.append("voiceId", selectedVoice);
-      formData.append("length", contentLength.toString());
-      formData.append("customPrompt", customPrompt);
+      formData.append("length", String(contentLength));
       
       // If we're editing, also include the original source files/urls
       if (inputType === "pdf") {
         files.forEach((file) => formData.append("pdfs", file));
-      } else {
+      } else if (inputType === "url") {
         urls.forEach((url) => formData.append("urls", url));
+      } else if (inputType === "text") {
+        formData.append("text", directText);
       }
       
       const response = await axios.post(`/api/voice/generate`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       
-      const { voiceId, audioUrl } = response.data;
-      setAudioUrl(audioUrl);
-      setCurrentStep("voice");
-      
-      toast.success("Voice content generated successfully!");
-      
-      if (onVoiceCreated) onVoiceCreated(voiceId);
+      if (response.data.id) {
+        toast.success("Voice content generated successfully!");
+        // router.push("/dashboard/voice");
+      } else {
+        toast.error("Failed to generate voice content. Please try again.");
+      }
     } catch (error) {
-      console.error("Error generating voice content:", error);
-      toast.error("Failed to generate voice content. Please try again.");
+      console.error("Error generating voice:", error);
+      toast.error("An error occurred while generating the voice content.");
     } finally {
       setIsGeneratingVoice(false);
     }
@@ -253,8 +267,10 @@ export function TwoStepVoiceGenerationForm({
       // If we're editing, also include the original source files/urls
       if (inputType === "pdf") {
         files.forEach((file) => formData.append("pdfs", file));
-      } else {
+      } else if (inputType === "url") {
         urls.forEach((url) => formData.append("urls", url));
+      } else if (inputType === "text") {
+        formData.append("text", directText);
       }
       
       const response = await axios.post(`/api/voice/generate`, formData, {
@@ -285,7 +301,7 @@ export function TwoStepVoiceGenerationForm({
       <CardContent className="p-6 space-y-6">
         {/* Step 1: Source Selection */}
         {currentStep === "source" && (
-          <form onSubmit={handleGenerateText} className="space-y-6">
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
             {/* Voice Name */}
             <div className="space-y-2">
               <Label
@@ -313,11 +329,12 @@ export function TwoStepVoiceGenerationForm({
               <Tabs 
                 defaultValue={inputType} 
                 className="w-full"
-                onValueChange={(value) => setInputType(value as "pdf" | "url")}
+                onValueChange={(value) => setInputType(value as "pdf" | "url" | "text")}
               >
-                <TabsList className="grid grid-cols-2 w-full">
-                  <TabsTrigger value="pdf">PDF Document</TabsTrigger>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="pdf">Documents</TabsTrigger>
                   <TabsTrigger value="url">Website URL</TabsTrigger>
+                  <TabsTrigger value="text">Direct Text Input</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="pdf" className="pt-4">
@@ -333,6 +350,16 @@ export function TwoStepVoiceGenerationForm({
                     urls={urls}
                     setUrls={setUrls}
                     isDisabled={isGeneratingText}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="text" className="pt-4">
+                  <Textarea
+                    value={directText}
+                    onChange={(e) => setDirectText(e.target.value)}
+                    className="bg-background border-border text-foreground min-h-[200px]"
+                    placeholder="Enter your text here"
+                    disabled={isGeneratingText}
                   />
                 </TabsContent>
               </Tabs>
@@ -371,9 +398,10 @@ export function TwoStepVoiceGenerationForm({
 
             {/* Generate Text Button */}
             <Button
-              type="submit"
+              type="button"
               className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 mt-6"
               disabled={isGeneratingText}
+              onClick={handleGenerateText}
             >
               {isGeneratingText ? (
                 <>
@@ -408,7 +436,7 @@ export function TwoStepVoiceGenerationForm({
 
         {/* Step 2: Content Editing */}
         {currentStep === "content" && (
-          <form onSubmit={handleGenerateVoice} className="space-y-6">
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
             {/* Voice Name */}
             <div className="space-y-2">
               <Label
@@ -430,65 +458,21 @@ export function TwoStepVoiceGenerationForm({
 
             {/* Content Text */}
             <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label
-                  htmlFor="content-text"
-                  className="text-sm font-medium text-foreground"
-                >
-                  Content Text
-                </Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRegenerateText}
-                  disabled={isGeneratingText || isGeneratingVoice}
-                  className="h-8 px-3 text-xs"
-                >
-                  {isGeneratingText ? (
-                    <>
-                      <svg
-                        className="animate-spin h-3 w-3 mr-1"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        />
-                      </svg>
-                      Regenerating...
-                    </>
-                  ) : (
-                    <>Regenerate Text</>
-                  )}
-                </Button>
-              </div>
+              <Label
+                htmlFor="content-text"
+                className="text-sm font-medium text-foreground"
+              >
+                Generated Content
+              </Label>
               <Textarea
                 id="content-text"
                 value={contentText}
                 onChange={(e) => setContentText(e.target.value)}
-                className="bg-background border-border text-foreground min-h-[200px]"
-                placeholder="Edit the generated text or write your own content"
-                disabled={isGeneratingVoice || isGeneratingText}
-                required
+                className="min-h-[200px] bg-background border-border text-foreground"
+                placeholder="Your generated content will appear here"
+                disabled={isGeneratingVoice}
               />
-              <p className="text-xs text-muted-foreground">
-                Edit the text above to customize what will be spoken in the voice content.
-              </p>
             </div>
-
-            <Separator className="my-4" />
 
             {/* Voice Selection */}
             <div className="space-y-2">
@@ -501,37 +485,38 @@ export function TwoStepVoiceGenerationForm({
               <Select
                 value={selectedVoice}
                 onValueChange={setSelectedVoice}
-                disabled={isGeneratingVoice}
               >
-                <SelectTrigger id="voice-selection" className="w-full">
+                <SelectTrigger className="w-full bg-background border-border text-foreground">
                   <SelectValue placeholder="Select a voice" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_VOICES.map((voice) => (
-                    <SelectItem key={voice.id} value={voice.id}>
-                      {voice.name} - {voice.description}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>ElevenLabs Voices</SelectLabel>
+                    {AVAILABLE_VOICES.map((voice) => (
+                      <SelectItem key={voice.id} value={voice.id}>
+                        {voice.name} - {voice.description}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Button Group */}
-            <div className="flex gap-4 mt-6">
+            {/* Navigation Buttons */}
+            <div className="flex justify-between gap-4 mt-6">
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1"
                 onClick={() => setCurrentStep("source")}
-                disabled={isGeneratingVoice}
+                className="flex-1"
               >
-                Back to Source
+                Back
               </Button>
-              
               <Button
-                type="submit"
-                className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+                type="button"
+                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
                 disabled={isGeneratingVoice}
+                onClick={handleGenerateVoice}
               >
                 {isGeneratingVoice ? (
                   <>
@@ -555,10 +540,10 @@ export function TwoStepVoiceGenerationForm({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    Generating Voice...
+                    Generating...
                   </>
                 ) : (
-                  <>Generate Voice</>
+                  "Generate Voice"
                 )}
               </Button>
             </div>

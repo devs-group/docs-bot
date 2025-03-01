@@ -7,6 +7,8 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/cheerio";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { ChatOpenAI } from "@langchain/openai";
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // Helper function to normalize URLs
 function normalizeUrl(url: string): string {
@@ -21,6 +23,17 @@ async function extractTextFromPDF(filePath: string): Promise<string> {
   const loader = new PDFLoader(filePath);
   const docs = await loader.load();
   return docs.map(doc => doc.pageContent).join(" ");
+}
+
+// Function to extract text from text-based files (markdown, txt, json)
+async function extractTextFromFile(filePath: string): Promise<string> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return content;
+  } catch (error) {
+    console.error(`Error reading file ${filePath}:`, error);
+    throw new Error(`Failed to read file: ${filePath}`);
+  }
 }
 
 // Function to extract text from URLs
@@ -68,12 +81,31 @@ export async function POST(req: NextRequest) {
     const { fields, files } = await parseFormData(req);
     const sources: ChatbotSource[] = [];
 
-    // Process PDF files
+    // Check for direct text input
+    const directText = fields.directText;
+    if (directText && typeof directText === 'string' && directText.trim()) {
+      // If direct text is provided, use it directly
+      const length = parseInt(fields.length as string) || 1;
+      const customPrompt = fields.customPrompt as string || undefined;
+      
+      const summary = await generateSummary(directText, length, customPrompt);
+      
+      return NextResponse.json({ summary });
+    }
+
+    // Process files
     if (files) {
       for (const file of files) {
-        if (file.name.toLowerCase().endsWith(".pdf")) {
+        const extension = path.extname(file.name).toLowerCase();
+        
+        if (extension === '.pdf') {
           sources.push({
             type: "pdf",
+            path: file.path,
+          });
+        } else if (['.md', '.markdown', '.txt', '.json'].includes(extension)) {
+          sources.push({
+            type: extension.substring(1), // Remove the dot
             path: file.path,
           });
         }
@@ -96,40 +128,50 @@ export async function POST(req: NextRequest) {
 
     if (sources.length === 0) {
       return NextResponse.json(
-        { error: "No sources provided. Please provide either a PDF file or a URL." },
+        { error: "No sources provided. Please provide either a file, URL, or direct text." },
         { status: 400 },
       );
     }
 
-    // Extract length parameter
-    const length = fields.length ? parseInt(String(fields.length)) : 1; // Default to 1 minute
-    
-    // Extract custom prompt if provided
-    const customPrompt = fields.customPrompt ? String(fields.customPrompt) : undefined;
-
-    // Extract text from sources
+    // Extract text from all sources
     let combinedText = "";
+    
     for (const source of sources) {
-      if (source.type === "pdf") {
-        const text = await extractTextFromPDF(source.path);
-        combinedText += text + " ";
-      } else if (source.type === "url") {
-        const text = await extractTextFromURL(source.path);
-        combinedText += text + " ";
+      try {
+        let extractedText = "";
+        
+        if (source.type === "pdf") {
+          extractedText = await extractTextFromPDF(source.path);
+        } else if (source.type === "url") {
+          extractedText = await extractTextFromURL(source.path);
+        } else if (["md", "markdown", "txt", "json"].includes(source.type)) {
+          extractedText = await extractTextFromFile(source.path);
+        }
+        
+        combinedText += extractedText + "\n\n";
+      } catch (error) {
+        console.error(`Error processing source ${source.path}:`, error);
       }
     }
+    
+    if (!combinedText.trim()) {
+      return NextResponse.json(
+        { error: "Could not extract text from any of the provided sources." },
+        { status: 400 },
+      );
+    }
 
-    // Generate summary based on the desired length and custom prompt
+    // Generate summary
+    const length = parseInt(fields.length as string) || 1;
+    const customPrompt = fields.customPrompt as string || undefined;
+    
     const summary = await generateSummary(combinedText, length, customPrompt);
     
-    return NextResponse.json({
-      summary,
-      message: "Text summary generated successfully",
-    });
+    return NextResponse.json({ summary });
   } catch (error) {
     console.error("Error generating text summary:", error);
     return NextResponse.json(
-      { error: "Failed to generate text summary", details: error },
+      { error: "Failed to generate text summary" },
       { status: 500 },
     );
   }

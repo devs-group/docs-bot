@@ -11,6 +11,8 @@ import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/cheerio";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { ChatOpenAI } from "@langchain/openai";
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // Helper function to normalize URLs
 function normalizeUrl(url: string): string {
@@ -25,6 +27,17 @@ async function extractTextFromPDF(filePath: string): Promise<string> {
   const loader = new PDFLoader(filePath);
   const docs = await loader.load();
   return docs.map(doc => doc.pageContent).join(" ");
+}
+
+// Function to extract text from text-based files (markdown, txt, json)
+async function extractTextFromFile(filePath: string): Promise<string> {
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    return content;
+  } catch (error) {
+    console.error(`Error reading file ${filePath}:`, error);
+    throw new Error(`Failed to read file: ${filePath}`);
+  }
 }
 
 // Function to extract and summarize text from URLs
@@ -126,55 +139,75 @@ export async function POST(req: NextRequest) {
     if (fields.content && String(fields.content).trim()) {
       summary = String(fields.content);
     } else {
-      // Process PDF files
-      if (files) {
-        for (const file of files) {
-          if (file.name.toLowerCase().endsWith(".pdf")) {
-            sources.push({
-              type: "pdf",
-              path: file.path,
-            });
+      // Check for direct text input
+      const directText = fields.text;
+      if (directText && typeof directText === 'string' && directText.trim()) {
+        // If direct text is provided, use it directly
+        const length = parseInt(fields.length as string) || 1;
+        const customPrompt = fields.customPrompt as string || undefined;
+        
+        summary = await generateSummary(directText, length, customPrompt);
+      } else {
+        // Process PDF files
+        if (files) {
+          for (const file of files) {
+            const extension = path.extname(file.name).toLowerCase();
+            
+            if (extension === '.pdf') {
+              sources.push({
+                type: "pdf",
+                path: file.path,
+              });
+            } else if (['.md', '.markdown', '.txt', '.json'].includes(extension)) {
+              sources.push({
+                type: "file",
+                path: file.path,
+              });
+            }
           }
         }
-      }
 
-      // Process URLs
-      const urls = fields.urls;
-      if (urls) {
-        const urlsArray = Array.isArray(urls) ? urls : [urls];
-        for (const url of urlsArray) {
-          if (url.trim()) {
-            sources.push({
-              type: "url",
-              path: normalizeUrl(url.trim()),
-            });
+        // Process URLs
+        const urls = fields.urls;
+        if (urls) {
+          const urlsArray = Array.isArray(urls) ? urls : [urls];
+          for (const url of urlsArray) {
+            if (url.trim()) {
+              sources.push({
+                type: "url",
+                path: normalizeUrl(url.trim()),
+              });
+            }
           }
         }
-      }
 
-      if (sources.length === 0) {
-        return NextResponse.json(
-          { error: "No sources or content provided. Please provide either a PDF file, a URL, or pre-generated content." },
-          { status: 400 },
-        );
-      }
-
-      // Extract text from sources
-      let combinedText = "";
-      for (const source of sources) {
-        if (source.type === "pdf") {
-          const text = await extractTextFromPDF(source.path);
-          combinedText += text + " ";
-        } else if (source.type === "url") {
-          const text = await extractTextFromURL(source.path);
-          combinedText += text + " ";
+        if (sources.length === 0) {
+          return NextResponse.json(
+            { error: "No sources or content provided. Please provide either a file, a URL, direct text, or pre-generated content." },
+            { status: 400 },
+          );
         }
-      }
 
-      // Generate summary based on the desired length
-      const length = fields.length ? parseInt(String(fields.length)) : 1; // Default to 1 minute
-      const customPrompt = fields.customPrompt ? String(fields.customPrompt) : undefined;
-      summary = await generateSummary(combinedText, length, customPrompt);
+        // Extract text from sources
+        let combinedText = "";
+        for (const source of sources) {
+          if (source.type === "pdf") {
+            const text = await extractTextFromPDF(source.path);
+            combinedText += text + " ";
+          } else if (source.type === "file") {
+            const text = await extractTextFromFile(source.path);
+            combinedText += text + " ";
+          } else if (source.type === "url") {
+            const text = await extractTextFromURL(source.path);
+            combinedText += text + " ";
+          }
+        }
+
+        // Generate summary based on the desired length
+        const length = fields.length ? parseInt(String(fields.length)) : 1; // Default to 1 minute
+        const customPrompt = fields.customPrompt ? String(fields.customPrompt) : undefined;
+        summary = await generateSummary(combinedText, length, customPrompt);
+      }
     }
 
     // Extract other fields
@@ -192,6 +225,12 @@ export async function POST(req: NextRequest) {
     let sourceToStore: ChatbotSource;
     if (sources.length > 0) {
       sourceToStore = sources[0]; // Store the first source if available
+    } else if (fields.text && typeof fields.text === 'string' && fields.text.trim()) {
+      // Create a source for direct text input
+      sourceToStore = {
+        type: "text",
+        path: "Direct text input",
+      };
     } else {
       // Create a placeholder source if we're using pre-generated content
       sourceToStore = {
