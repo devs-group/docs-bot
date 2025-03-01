@@ -24,6 +24,8 @@ export type VoiceData = InferModel<typeof voices> & {
 
 export type ApiKeyData = InferModel<typeof apiKeys>;
 
+export type SubscriptionData = InferModel<typeof subscriptions>;
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
@@ -32,6 +34,7 @@ export const users = pgTable("users", {
   image: text("image"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
 });
 
 export const accounts = pgTable("accounts", {
@@ -122,4 +125,19 @@ export const apiKeys = pgTable("api_keys", {
   lastUsed: timestamp("last_used"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at"),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  stripeSubscriptionId: text("stripe_subscription_id").notNull().unique(),
+  stripePriceId: text("stripe_price_id").notNull(),
+  stripeCurrentPeriodEnd: timestamp("stripe_current_period_end", { mode: "date" }).notNull(),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  planId: text("plan_id").notNull(), // 'free' or 'pro'
+  status: text("status").notNull(), // 'active', 'canceled', 'past_due', etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

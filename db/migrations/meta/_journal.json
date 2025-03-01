@@ -50,6 +50,13 @@
       "when": 1740825283086,
       "tag": "0006_rainy_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1740860934589,
+      "tag": "0007_broad_excalibur",
+      "breakpoints": true
     }
   ]
 }
