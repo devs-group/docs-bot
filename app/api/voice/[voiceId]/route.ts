@@ -29,7 +29,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    return NextResponse.json({ voiceContent });
+    return NextResponse.json(voiceContent);
   } catch (error) {
     console.error("Error fetching voice content:", error);
     return NextResponse.json(

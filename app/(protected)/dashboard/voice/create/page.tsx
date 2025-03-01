@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { VoiceGenerationForm } from "@/components/voice/VoiceGenerationForm";
+import { TwoStepVoiceGenerationForm } from "@/components/voice/TwoStepVoiceGenerationForm";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function CreateVoicePage() {
@@ -32,7 +32,7 @@ export default function CreateVoicePage() {
       </div>
 
       <div className="p-1">
-        <VoiceGenerationForm onVoiceCreated={handleVoiceCreated} />
+        <TwoStepVoiceGenerationForm onVoiceCreated={handleVoiceCreated} />
       </div>
 
       <Toaster />

@@ -117,65 +117,84 @@ export async function POST(req: NextRequest) {
     // Parse form data
     const { fields, files } = await parseFormData(req);
     const sources: ChatbotSource[] = [];
+    let summary = "";
 
-    // Process PDF files
-    if (files) {
-      for (const file of files) {
-        if (file.name.toLowerCase().endsWith(".pdf")) {
-          sources.push({
-            type: "pdf",
-            path: file.path,
-          });
+    // Check if we have a pre-generated text summary
+    if (fields.content && String(fields.content).trim()) {
+      summary = String(fields.content);
+    } else {
+      // Process PDF files
+      if (files) {
+        for (const file of files) {
+          if (file.name.toLowerCase().endsWith(".pdf")) {
+            sources.push({
+              type: "pdf",
+              path: file.path,
+            });
+          }
         }
       }
-    }
 
-    // Process URLs
-    const urls = fields.urls;
-    if (urls) {
-      const urlsArray = Array.isArray(urls) ? urls : [urls];
-      for (const url of urlsArray) {
-        if (url.trim()) {
-          sources.push({
-            type: "url",
-            path: normalizeUrl(url.trim()),
-          });
+      // Process URLs
+      const urls = fields.urls;
+      if (urls) {
+        const urlsArray = Array.isArray(urls) ? urls : [urls];
+        for (const url of urlsArray) {
+          if (url.trim()) {
+            sources.push({
+              type: "url",
+              path: normalizeUrl(url.trim()),
+            });
+          }
         }
       }
-    }
 
-    if (sources.length === 0) {
-      return NextResponse.json(
-        { error: "No sources provided" },
-        { status: 400 },
-      );
+      if (sources.length === 0) {
+        return NextResponse.json(
+          { error: "No sources or content provided. Please provide either a PDF file, a URL, or pre-generated content." },
+          { status: 400 },
+        );
+      }
+
+      // Extract text from sources
+      let combinedText = "";
+      for (const source of sources) {
+        if (source.type === "pdf") {
+          const text = await extractTextFromPDF(source.path);
+          combinedText += text + " ";
+        } else if (source.type === "url") {
+          const text = await extractTextFromURL(source.path);
+          combinedText += text + " ";
+        }
+      }
+
+      // Generate summary based on the desired length
+      const length = fields.length ? parseInt(String(fields.length)) : 1; // Default to 1 minute
+      summary = await generateSummary(combinedText, length);
     }
 
     // Extract other fields
     const name = fields.name ? String(fields.name) : "Voice Content";
     const voiceId = fields.voiceId ? String(fields.voiceId) : "21m00Tcm4TlvDq8ikWAM"; // Default to Rachel
     const length = fields.length ? parseInt(String(fields.length)) : 1; // Default to 1 minute
-
-    // Extract text from sources
-    let combinedText = "";
-    for (const source of sources) {
-      if (source.type === "pdf") {
-        const text = await extractTextFromPDF(source.path);
-        combinedText += text + " ";
-      } else if (source.type === "url") {
-        const text = await extractTextFromURL(source.path);
-        combinedText += text + " ";
-      }
-    }
-
-    // Generate summary based on the desired length
-    const summary = await generateSummary(combinedText, length);
     
     // Generate audio using ElevenLabs
     const audioUrl = await generateAudio(summary, voiceId);
     
     // Generate a unique ID for the voice content
     const id = uuidv4();
+    
+    // Determine the source to store
+    let sourceToStore: ChatbotSource;
+    if (sources.length > 0) {
+      sourceToStore = sources[0]; // Store the first source if available
+    } else {
+      // Create a placeholder source if we're using pre-generated content
+      sourceToStore = {
+        type: "text",
+        path: "Pre-generated content",
+      };
+    }
     
     // Store in database
     await db.insert(voices).values({
@@ -186,7 +205,7 @@ export async function POST(req: NextRequest) {
       voiceId,
       audioUrl,
       length,
-      source: sources[0], // Store the first source for reference
+      source: sourceToStore,
     });
 
     return NextResponse.json({
