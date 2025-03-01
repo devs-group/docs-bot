@@ -45,6 +45,9 @@ interface TwoStepVoiceGenerationFormProps {
     content?: string;
     voiceId?: string;
     length?: number;
+    sourceType?: "pdf" | "url";
+    sourcePath?: string;
+    audioUrl?: string;
   };
 }
 
@@ -60,16 +63,16 @@ export function TwoStepVoiceGenerationForm({
   const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
   
   // Source inputs
-  const [urls, setUrls] = useState<string[]>([]);
+  const [urls, setUrls] = useState<string[]>(initialData?.sourceType === "url" && initialData.sourcePath ? [initialData.sourcePath] : []);
   const [files, setFiles] = useState<File[]>([]);
-  const [inputType, setInputType] = useState<"pdf" | "url">("pdf");
+  const [inputType, setInputType] = useState<"pdf" | "url">(initialData?.sourceType === "url" ? "url" : "pdf");
   
   // Voice content
   const [voiceName, setVoiceName] = useState(initialData?.name || "");
   const [contentText, setContentText] = useState(initialData?.content || "");
   const [selectedVoice, setSelectedVoice] = useState(initialData?.voiceId || AVAILABLE_VOICES[0].id);
   const [contentLength, setContentLength] = useState(initialData?.length || 1); // 1-5 minutes
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(initialData?.audioUrl || null);
   
   // Custom system prompt
   const [customPrompt, setCustomPrompt] = useState(
@@ -146,6 +149,44 @@ export function TwoStepVoiceGenerationForm({
     }
   };
 
+  // Handle text regeneration
+  const handleRegenerateText = async () => {
+    if (!validateSourceStep()) return;
+    
+    setIsGeneratingText(true);
+    
+    try {
+      // Create form data
+      const formData = new FormData();
+      
+      // Add files or URLs based on the selected input type
+      if (inputType === "pdf") {
+        files.forEach((file) => formData.append("pdfs", file));
+      } else {
+        urls.forEach((url) => formData.append("urls", url));
+      }
+      
+      // Add length parameter
+      formData.append("length", contentLength.toString());
+      
+      // Add custom prompt
+      formData.append("customPrompt", customPrompt);
+      
+      const response = await axios.post(`/api/voice/generate-text`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      
+      setContentText(response.data.summary);
+      
+      toast.success("Text summary regenerated successfully!");
+    } catch (error) {
+      console.error("Error regenerating text summary:", error);
+      toast.error("Failed to regenerate text summary. Please try again.");
+    } finally {
+      setIsGeneratingText(false);
+    }
+  };
+
   // Handle voice generation
   const handleGenerateVoice = async (e: FormEvent) => {
     e.preventDefault();
@@ -186,6 +227,48 @@ export function TwoStepVoiceGenerationForm({
     } catch (error) {
       console.error("Error generating voice content:", error);
       toast.error("Failed to generate voice content. Please try again.");
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
+
+  // Handle voice regeneration
+  const handleRegenerateVoice = async () => {
+    if (!validateContentStep()) return;
+    
+    setIsGeneratingVoice(true);
+    
+    try {
+      // Create form data
+      const formData = new FormData();
+      
+      // Add content fields
+      formData.append("name", voiceName);
+      formData.append("content", contentText);
+      formData.append("voiceId", selectedVoice);
+      formData.append("length", contentLength.toString());
+      formData.append("customPrompt", customPrompt);
+      
+      // If we're editing, also include the original source files/urls
+      if (inputType === "pdf") {
+        files.forEach((file) => formData.append("pdfs", file));
+      } else {
+        urls.forEach((url) => formData.append("urls", url));
+      }
+      
+      const response = await axios.post(`/api/voice/generate`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      
+      const { voiceId, audioUrl } = response.data;
+      setAudioUrl(audioUrl);
+      
+      toast.success("Voice content regenerated successfully!");
+      
+      if (onVoiceCreated) onVoiceCreated(voiceId);
+    } catch (error) {
+      console.error("Error regenerating voice content:", error);
+      toast.error("Failed to regenerate voice content. Please try again.");
     } finally {
       setIsGeneratingVoice(false);
     }
@@ -346,19 +429,57 @@ export function TwoStepVoiceGenerationForm({
 
             {/* Content Text */}
             <div className="space-y-2">
-              <Label
-                htmlFor="content-text"
-                className="text-sm font-medium text-foreground"
-              >
-                Content Text
-              </Label>
+              <div className="flex justify-between items-center">
+                <Label
+                  htmlFor="content-text"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Content Text
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerateText}
+                  disabled={isGeneratingText || isGeneratingVoice}
+                  className="h-8 px-3 text-xs"
+                >
+                  {isGeneratingText ? (
+                    <>
+                      <svg
+                        className="animate-spin h-3 w-3 mr-1"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      Regenerating...
+                    </>
+                  ) : (
+                    <>Regenerate Text</>
+                  )}
+                </Button>
+              </div>
               <Textarea
                 id="content-text"
                 value={contentText}
                 onChange={(e) => setContentText(e.target.value)}
                 className="bg-background border-border text-foreground min-h-[200px]"
                 placeholder="Edit the generated text or write your own content"
-                disabled={isGeneratingVoice}
+                disabled={isGeneratingVoice || isGeneratingText}
                 required
               />
               <p className="text-xs text-muted-foreground">
@@ -447,9 +568,47 @@ export function TwoStepVoiceGenerationForm({
         {currentStep === "voice" && audioUrl && (
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">
-                Generated Voice Content
-              </Label>
+              <div className="flex justify-between items-center">
+                <Label className="text-sm font-medium text-foreground">
+                  Generated Voice Content
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRegenerateVoice}
+                  disabled={isGeneratingVoice}
+                  className="h-8 px-3 text-xs"
+                >
+                  {isGeneratingVoice ? (
+                    <>
+                      <svg
+                        className="animate-spin h-3 w-3 mr-1"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      Regenerating...
+                    </>
+                  ) : (
+                    <>Regenerate Voice</>
+                  )}
+                </Button>
+              </div>
               <div className="bg-muted p-4 rounded-md">
                 <audio controls className="w-full" src={audioUrl}>
                   Your browser does not support the audio element.

@@ -4,10 +4,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Pencil, Mic } from "lucide-react";
 import { VoiceContent } from "@/types/chatbot";
 import { toast } from "sonner";
+import { ContentCard } from "@/components/shared/ContentCard";
+import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 export default function VoicePage() {
   const router = useRouter();
@@ -42,6 +44,10 @@ export default function VoicePage() {
     }
   };
 
+  const handleEdit = (id: string) => {
+    router.push(`/dashboard/voice/edit/${id}`);
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center mb-4">
@@ -68,61 +74,38 @@ export default function VoicePage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center p-12">
-          <svg
-            className="animate-spin h-8 w-8 text-primary"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        </div>
+        <LoadingSpinner size="lg" className="p-12" />
       ) : voiceContent.length === 0 ? (
         <div className="text-center p-12">
-          <p className="text-muted-foreground">
-            You haven&apos;t created any voice content yet.
-          </p>
-          <Button
-            onClick={() => router.push("/dashboard/voice/create")}
-            className="mt-4"
-          >
-            Create Your First Voice Content
-          </Button>
+          <EmptyState
+            title="No voice content yet"
+            description="You have not created any voice content yet. Create your first voice content by clicking the button below."
+            icon={<Mic className="h-12 w-12" />}
+            actionLabel="Create Your First Voice Content"
+            onAction={() => router.push("/dashboard/voice/create")}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {voiceContent.map((item) => (
-            <Card key={item.id} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-xl">{item.name}</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(item.id)}
-                    className="h-8 w-8 text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </p>
-              </CardHeader>
-              <CardContent>
+            <ContentCard
+              key={item.id}
+              id={item.id}
+              title={item.name}
+              createdAt={item.createdAt}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              tags={[
+                {
+                  label: item.source?.type?.toUpperCase() || "UNKNOWN",
+                  type: item.source?.type || "unknown",
+                },
+              ]}
+              metadata={[
+                { label: "Length", value: `${item.length} min` },
+                { label: "Voice", value: item.voiceId }
+              ]}
+              preview={
                 <div className="space-y-4">
                   <div className="bg-muted p-4 rounded-md max-h-32 overflow-y-auto">
                     <p className="text-sm text-foreground line-clamp-4">
@@ -131,7 +114,7 @@ export default function VoicePage() {
                   </div>
                   
                   <div>
-                    <p className="text-sm font-medium mb-1">Audio ({item.length} min)</p>
+                    <p className="text-sm font-medium mb-1">Audio</p>
                     {item.audioUrl ? (
                       <audio controls className="w-full">
                         <source src={item.audioUrl} type="audio/mpeg" />
@@ -144,8 +127,8 @@ export default function VoicePage() {
                     )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              }
+            />
           ))}
         </div>
       )}

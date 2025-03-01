@@ -9,7 +9,7 @@ export default function DashboardPage() {
       <h1 className="text-3xl font-bold text-foreground mb-6">Dashboard</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-card border-border shadow-md">
+        <Card className="bg-card border-border shadow-md hover:border-primary/50 transition-colors">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5" />
@@ -26,7 +26,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         
-        <Card className="bg-card border-border shadow-md">
+        <Card className="bg-card border-border shadow-md hover:border-primary/50 transition-colors">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Mic className="h-5 w-5" />
@@ -44,14 +44,14 @@ export default function DashboardPage() {
         </Card>
       </div>
       
-      <Card className="bg-card border-border shadow-md">
+      <Card className="bg-card border-border shadow-md hover:border-primary/50 transition-colors">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="h-5 w-5" />
             API Keys
           </CardTitle>
           <CardDescription>
-            Generate API keys to access your chatbots programmatically
+            Manage API keys for external services
           </CardDescription>
         </CardHeader>
         <CardContent>
