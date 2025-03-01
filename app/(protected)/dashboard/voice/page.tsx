@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, ArrowLeft, Pencil, Mic } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Pencil, Mic, Download } from "lucide-react";
 import { VoiceContent } from "@/types/chatbot";
 import { toast } from "sonner";
 import { ContentCard } from "@/components/shared/ContentCard";
@@ -46,6 +46,59 @@ export default function VoicePage() {
 
   const handleEdit = (id: string) => {
     router.push(`/dashboard/voice/edit/${id}`);
+  };
+
+  const handleDownload = (audioUrl: string, name: string) => {
+    try {
+      // For data URLs, we need to convert from base64 to a blob
+      if (audioUrl.startsWith('data:')) {
+        // Extract the base64 part
+        const base64Data = audioUrl.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteArrays = [];
+        
+        for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+          const slice = byteCharacters.slice(offset, offset + 512);
+          
+          const byteNumbers = new Array(slice.length);
+          for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+          }
+          
+          const byteArray = new Uint8Array(byteNumbers);
+          byteArrays.push(byteArray);
+        }
+        
+        const blob = new Blob(byteArrays, { type: 'audio/mpeg' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create download link
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${name.replace(/\s+/g, '_')}_audio.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up the URL
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+        
+        toast.success("Audio download started");
+      } else {
+        // Regular URL
+        const a = document.createElement('a');
+        a.href = audioUrl;
+        a.download = `${name.replace(/\s+/g, '_')}_audio.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        toast.success("Audio download started");
+      }
+    } catch (error) {
+      console.error("Error downloading audio:", error);
+      toast.error("Failed to download audio");
+    }
   };
 
   return (
@@ -116,10 +169,21 @@ export default function VoicePage() {
                   <div>
                     <p className="text-sm font-medium mb-1">Audio</p>
                     {item.audioUrl ? (
-                      <audio controls className="w-full">
-                        <source src={item.audioUrl} type="audio/mpeg" />
-                        Your browser does not support the audio element.
-                      </audio>
+                      <div className="space-y-2">
+                        <audio controls className="w-full">
+                          <source src={item.audioUrl} type="audio/mpeg" />
+                          Your browser does not support the audio element.
+                        </audio>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full flex items-center justify-center gap-2"
+                          onClick={() => handleDownload(item.audioUrl || '', item.name)}
+                        >
+                          <Download className="h-4 w-4" />
+                          Download Audio
+                        </Button>
+                      </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">
                         Audio not available

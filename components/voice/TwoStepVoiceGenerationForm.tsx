@@ -23,6 +23,7 @@ import { ChatbotSource } from "@/types/chatbot";
 import { v4 as uuidv4 } from "uuid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VoicePromptEditor } from "./VoicePromptEditor";
+import { Download } from "lucide-react";
 
 // ElevenLabs voices
 const AVAILABLE_VOICES = [
@@ -613,6 +614,68 @@ export function TwoStepVoiceGenerationForm({
                 <audio controls className="w-full" src={audioUrl}>
                   Your browser does not support the audio element.
                 </audio>
+                {audioUrl && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="w-full mt-2 flex items-center justify-center gap-2"
+                    onClick={() => {
+                      try {
+                        // For data URLs, we need to convert from base64 to a blob
+                        if (audioUrl.startsWith('data:')) {
+                          // Extract the base64 part
+                          const base64Data = audioUrl.split(',')[1];
+                          const byteCharacters = atob(base64Data);
+                          const byteArrays = [];
+                          
+                          for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                            const slice = byteCharacters.slice(offset, offset + 512);
+                            
+                            const byteNumbers = new Array(slice.length);
+                            for (let i = 0; i < slice.length; i++) {
+                              byteNumbers[i] = slice.charCodeAt(i);
+                            }
+                            
+                            const byteArray = new Uint8Array(byteNumbers);
+                            byteArrays.push(byteArray);
+                          }
+                          
+                          const blob = new Blob(byteArrays, { type: 'audio/mpeg' });
+                          const url = URL.createObjectURL(blob);
+                          
+                          // Create download link
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${voiceName || 'voice_content'}_audio.mp3`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          
+                          // Clean up the URL
+                          setTimeout(() => URL.revokeObjectURL(url), 100);
+                          
+                          toast.success("Audio download started");
+                        } else {
+                          // Regular URL
+                          const a = document.createElement('a');
+                          a.href = audioUrl;
+                          a.download = `${voiceName || 'voice_content'}_audio.mp3`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          
+                          toast.success("Audio download started");
+                        }
+                      } catch (error) {
+                        console.error("Error downloading audio:", error);
+                        toast.error("Failed to download audio");
+                      }
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Audio
+                  </Button>
+                )}
               </div>
             </div>
 
