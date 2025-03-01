@@ -5,7 +5,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, MessageSquare } from "lucide-react";
+import { Plus, Edit, Trash2, MessageSquare, Code } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChatbotTester } from "./ChatbotTester";
+import { ApiUsageDialog } from "./ApiUsageDialog";
 import { MoreVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ChatbotData } from "@/db/schema";
@@ -26,6 +27,8 @@ export function ChatbotList() {
     null,
   );
   const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [apiDialogOpen, setApiDialogOpen] = useState(false);
+  const [selectedChatbotForApi, setSelectedChatbotForApi] = useState<string | null>(null);
 
   useEffect(() => {
     fetchChatbots();
@@ -175,6 +178,17 @@ export function ChatbotList() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      setSelectedChatbotForApi(chatbot.id);
+                      setApiDialogOpen(true);
+                    }}
+                  >
+                    <Code className="h-4 w-4 mr-2" />
+                    API
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
                       setSelectedChatbotId(chatbot.id);
                       setTestDialogOpen(true);
                     }}
@@ -207,6 +221,14 @@ export function ChatbotList() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {selectedChatbotForApi && (
+        <ApiUsageDialog
+          open={apiDialogOpen}
+          onOpenChange={setApiDialogOpen}
+          chatbotId={selectedChatbotForApi}
+        />
+      )}
     </div>
   );
 }
