@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,8 +68,13 @@ export function TwoStepVoiceGenerationForm({
   // Source inputs
   const [urls, setUrls] = useState<string[]>(initialData?.sourceType === "url" && initialData.sourcePath ? [initialData.sourcePath] : []);
   const [files, setFiles] = useState<File[]>([]);
-  const [inputType, setInputType] = useState<"pdf" | "url" | "text">(initialData?.sourceType === "url" ? "url" : "pdf");
-  const [directText, setDirectText] = useState<string>("");
+  const [inputType, setInputType] = useState<"pdf" | "url" | "text">(
+    initialData?.sourceType === "url" ? "url" : 
+    initialData?.sourceType === "text" ? "text" : "pdf"
+  );
+  const [directText, setDirectText] = useState<string>(
+    initialData?.sourceType === "text" && initialData.sourcePath ? initialData.sourcePath : ""
+  );
 
   // Voice content
   const [voiceName, setVoiceName] = useState(initialData?.name || "");
@@ -291,6 +296,35 @@ export function TwoStepVoiceGenerationForm({
     }
   };
 
+  useEffect(() => {
+    // If we have initial data in edit mode, set the appropriate input type and content
+    if (initialData) {
+      // Set the voice name and content
+      setVoiceName(initialData.name || "");
+      setContentText(initialData.content || "");
+      
+      // Set the voice ID and length
+      setSelectedVoice(initialData.voiceId || AVAILABLE_VOICES[0].id);
+      setContentLength(initialData.length || 1);
+      
+      // Set the audio URL if available
+      if (initialData.audioUrl) {
+        setAudioUrl(initialData.audioUrl);
+      }
+      
+      // Set the input type and source content based on the source type
+      if (initialData.sourceType) {
+        setInputType(initialData.sourceType as "pdf" | "url" | "text");
+        
+        if (initialData.sourceType === "url" && initialData.sourcePath) {
+          setUrls([initialData.sourcePath]);
+        } else if (initialData.sourceType === "text" && initialData.sourcePath) {
+          setDirectText(initialData.sourcePath);
+        }
+      }
+    }
+  }, [initialData]);
+
   return (
     <Card className="w-full bg-card border-border shadow-lg">
       <CardHeader>
@@ -354,13 +388,19 @@ export function TwoStepVoiceGenerationForm({
                 </TabsContent>
                 
                 <TabsContent value="text" className="pt-4">
-                  <Textarea
-                    value={directText}
-                    onChange={(e) => setDirectText(e.target.value)}
-                    className="bg-background border-border text-foreground min-h-[200px]"
-                    placeholder="Enter your text here"
-                    disabled={isGeneratingText}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="direct-text" className="text-sm font-medium text-foreground">
+                      Enter or paste your text
+                    </Label>
+                    <Textarea
+                      id="direct-text"
+                      value={directText}
+                      onChange={(e) => setDirectText(e.target.value)}
+                      className="min-h-[200px] bg-background border-border text-foreground"
+                      placeholder="Enter or paste your text here..."
+                      disabled={isGeneratingText}
+                    />
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>

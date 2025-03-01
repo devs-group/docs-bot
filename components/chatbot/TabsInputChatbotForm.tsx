@@ -312,24 +312,24 @@ export function TabsInputChatbotForm({
             </div>
           )}
           
-          {/* In edit mode, show the existing sources as read-only */}
+          {/* In edit mode, show the existing sources as editable */}
           {isEditMode && (
             <div className="space-y-2">
               <Label className="text-sm font-medium text-foreground">
-                Content Sources (Read-only)
+                Content Sources
               </Label>
-              <Tabs value={activeTab} className="w-full">
+              <Tabs value={activeTab} className="w-full" onValueChange={(value) => setActiveTab(value as "pdf" | "url" | "text")}>
                 <TabsList className="grid grid-cols-3 w-full">
-                  <TabsTrigger value="pdf" disabled>Documents</TabsTrigger>
-                  <TabsTrigger value="url" disabled>Website URLs</TabsTrigger>
-                  <TabsTrigger value="text" disabled>Direct Text</TabsTrigger>
+                  <TabsTrigger value="pdf">Documents</TabsTrigger>
+                  <TabsTrigger value="url">Website URLs</TabsTrigger>
+                  <TabsTrigger value="text">Direct Text</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="pdf" className="pt-4">
                   <FileUploader
                     files={files}
                     setFiles={setFiles}
-                    isDisabled={true}
+                    isDisabled={isSubmitting}
                   />
                 </TabsContent>
                 
@@ -337,8 +337,7 @@ export function TabsInputChatbotForm({
                   <UrlInput
                     urls={urls}
                     setUrls={setUrls}
-                    isDisabled={true}
-                    readOnly={true}
+                    isDisabled={isSubmitting}
                   />
                 </TabsContent>
                 
@@ -349,7 +348,7 @@ export function TabsInputChatbotForm({
                     onChange={(e) => setDirectText(e.target.value)}
                     className="bg-background border-border text-foreground min-h-[200px]"
                     placeholder="Enter your text here"
-                    disabled={true}
+                    disabled={isSubmitting}
                   />
                 </TabsContent>
               </Tabs>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { TwoStepVoiceGenerationForm } from "@/components/voice/TwoStepVoiceGenerationForm";
 import { Toaster } from "@/components/ui/sonner";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,18 +16,23 @@ interface VoiceContent {
   voiceId: string;
   length: number;
   audioUrl: string;
+  source?: {
+    type: string;
+    path: string;
+  };
 }
 
-export default function EditVoicePage({ params }: { params: { voiceId: string } }) {
+export default function EditVoicePage({ params }: { params: Promise<{ voiceId: string }> }) {
   const router = useRouter();
   const [voiceContent, setVoiceContent] = useState<VoiceContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { voiceId } = use(params) 
 
   useEffect(() => {
     const fetchVoiceContent = async () => {
       try {
-        const response = await axios.get(`/api/voice/${params.voiceId}`);
+        const response = await axios.get(`/api/voice/${voiceId}`);
         setVoiceContent(response.data);
       } catch (err) {
         console.error("Error fetching voice content:", err);
@@ -38,12 +43,28 @@ export default function EditVoicePage({ params }: { params: { voiceId: string } 
     };
 
     fetchVoiceContent();
-  }, [params.voiceId]);
+  }, [voiceId]);
 
   const handleVoiceCreated = (voiceId: string) => {
     // Redirect to the dashboard after successful update
     console.log("Voice content updated with ID:", voiceId);
     router.push("/dashboard");
+  };
+
+  // Prepare the initial data for the form with source information
+  const prepareInitialData = () => {
+    if (!voiceContent) return undefined;
+
+    return {
+      id: voiceContent.id,
+      name: voiceContent.name,
+      content: voiceContent.content,
+      voiceId: voiceContent.voiceId,
+      length: voiceContent.length,
+      audioUrl: voiceContent.audioUrl,
+      sourceType: voiceContent.source?.type as "pdf" | "url" | "text",
+      sourcePath: voiceContent.source?.path
+    };
   };
 
   return (
@@ -83,7 +104,7 @@ export default function EditVoicePage({ params }: { params: { voiceId: string } 
         ) : (
           <TwoStepVoiceGenerationForm 
             onVoiceCreated={handleVoiceCreated} 
-            initialData={voiceContent || undefined}
+            initialData={prepareInitialData()}
           />
         )}
       </div>
