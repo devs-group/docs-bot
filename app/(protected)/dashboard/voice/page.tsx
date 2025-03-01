@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2, ArrowLeft, Pencil, Mic, Download } from "lucide-react";
 import { VoiceContent } from "@/types/chatbot";
 import { toast } from "sonner";
-import { ContentCard } from "@/components/shared/ContentCard";
+import { ContentCard, ContentCardAction } from "@/components/shared/ContentCard";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
 
@@ -140,60 +140,68 @@ export default function VoicePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {voiceContent.map((item) => (
-            <ContentCard
-              key={item.id}
-              id={item.id}
-              title={item.name}
-              createdAt={item.createdAt}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              tags={[
-                {
-                  label: item.source?.type?.toUpperCase() || "UNKNOWN",
-                  type: item.source?.type || "unknown",
-                },
-              ]}
-              metadata={[
-                { label: "Length", value: `${item.length} min` },
-                { label: "Voice", value: item.voiceId }
-              ]}
-              preview={
-                <div className="space-y-4">
-                  <div className="bg-muted p-4 rounded-md max-h-32 overflow-y-auto">
-                    <p className="text-sm text-foreground line-clamp-4">
-                      {item.content.substring(0, 200)}...
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm font-medium mb-1">Audio</p>
-                    {item.audioUrl ? (
-                      <div className="space-y-2">
-                        <audio controls className="w-full">
-                          <source src={item.audioUrl} type="audio/mpeg" />
-                          Your browser does not support the audio element.
-                        </audio>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="w-full flex items-center justify-center gap-2"
-                          onClick={() => handleDownload(item.audioUrl || '', item.name)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Download Audio
-                        </Button>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Audio not available
-                      </p>
-                    )}
-                  </div>
-                </div>
+          {voiceContent.map((item) => {
+            const actions: ContentCardAction[] = [
+              {
+                icon: <Download className="h-4 w-4 mr-2" />,
+                label: "Download Audio",
+                onClick: () => handleDownload(item.audioUrl || '', item.name),
+                variant: "default"
+              },
+              {
+                icon: <Trash2 className="h-4 w-4 mr-2" />,
+                label: "Delete",
+                onClick: () => handleDelete(item.id),
+                variant: "destructive"
               }
-            />
-          ))}
+            ];
+            
+            return (
+              <ContentCard
+                key={item.id}
+                id={item.id}
+                title={item.name}
+                createdAt={item.createdAt}
+                onEdit={handleEdit}
+                actions={actions}
+                tags={[
+                  {
+                    label: item.source?.type?.toUpperCase() || "UNKNOWN",
+                    type: item.source?.type || "unknown",
+                  },
+                ]}
+                metadata={[
+                  { label: "Length", value: `${item.length} min` },
+                  { label: "Voice", value: item.voiceId }
+                ]}
+                preview={
+                  <div className="space-y-4">
+                    <div className="bg-muted p-4 rounded-md max-h-32 overflow-y-auto">
+                      <p className="text-sm text-foreground line-clamp-4">
+                        {item.content.substring(0, 200)}...
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm font-medium mb-1">Audio</p>
+                      {item.audioUrl ? (
+                        <div className="space-y-2">
+                          <audio controls className="w-full">
+                            <source src={item.audioUrl} type="audio/mpeg" />
+                            Your browser does not support the audio element.
+                          </audio>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Audio not available
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                }
+              />
+            );
+          })}
         </div>
       )}
     </div>
