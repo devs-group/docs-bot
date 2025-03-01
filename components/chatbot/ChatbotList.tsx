@@ -74,17 +74,6 @@ export function ChatbotList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-foreground">Your Chatbots</h2>
-        <Button
-          className="bg-primary text-primary-foreground"
-          onClick={navigateToCreate}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Chatbot
-        </Button>
-      </div>
-
       {loading ? (
         <div className="flex justify-center p-12">
           <svg

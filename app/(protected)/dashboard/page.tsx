@@ -1,4 +1,3 @@
-import { ChatbotList } from "@/components/chatbot/ChatbotList";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -9,7 +8,7 @@ export default function DashboardPage() {
     <div className="container mx-auto py-8 space-y-8 max-w-4xl">
       <h1 className="text-3xl font-bold text-foreground mb-6">Dashboard</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="bg-card border-border shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -44,8 +43,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      
-      <ChatbotList />
     </div>
   );
 }
