@@ -22,6 +22,7 @@ import {
 import { ChatbotSource } from "@/types/chatbot";
 import { v4 as uuidv4 } from "uuid";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VoicePromptEditor } from "./VoicePromptEditor";
 
 // ElevenLabs voices
 const AVAILABLE_VOICES = [
@@ -69,6 +70,11 @@ export function TwoStepVoiceGenerationForm({
   const [selectedVoice, setSelectedVoice] = useState(initialData?.voiceId || AVAILABLE_VOICES[0].id);
   const [contentLength, setContentLength] = useState(initialData?.length || 1); // 1-5 minutes
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  
+  // Custom system prompt
+  const [customPrompt, setCustomPrompt] = useState(
+    "You are an AI assistant that summarizes documents and websites. Create a concise summary that captures the key points and main ideas of the content. The summary should be informative, well-structured, and maintain the original meaning."
+  );
 
   // Validation functions
   const validateSourceStep = () => {
@@ -121,6 +127,9 @@ export function TwoStepVoiceGenerationForm({
       // Add length parameter
       formData.append("length", contentLength.toString());
       
+      // Add custom prompt
+      formData.append("customPrompt", customPrompt);
+      
       const response = await axios.post(`/api/voice/generate-text`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -154,6 +163,7 @@ export function TwoStepVoiceGenerationForm({
       formData.append("content", contentText);
       formData.append("voiceId", selectedVoice);
       formData.append("length", contentLength.toString());
+      formData.append("customPrompt", customPrompt);
       
       // If we're editing, also include the original source files/urls
       if (inputType === "pdf") {
@@ -252,7 +262,7 @@ export function TwoStepVoiceGenerationForm({
                 htmlFor="content-length"
                 className="text-sm font-medium text-foreground"
               >
-                Content Length: {contentLength} minute{contentLength !== 1 ? 's' : ''}
+                Content Length: {contentLength} {contentLength === 1 ? "minute" : "minutes"}
               </Label>
               <Slider
                 id="content-length"
@@ -262,9 +272,18 @@ export function TwoStepVoiceGenerationForm({
                 value={[contentLength]}
                 onValueChange={(value) => setContentLength(value[0])}
                 disabled={isGeneratingText}
-                className="w-full"
               />
+              <p className="text-xs text-muted-foreground">
+                Choose how long the voice content should be (1-5 minutes).
+              </p>
             </div>
+
+            {/* Custom System Prompt */}
+            <VoicePromptEditor
+              customPrompt={customPrompt}
+              onPromptChange={setCustomPrompt}
+              isDisabled={isGeneratingText}
+            />
 
             {/* Generate Text Button */}
             <Button

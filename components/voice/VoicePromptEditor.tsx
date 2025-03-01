@@ -4,17 +4,17 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-interface PromptEditorProps {
+interface VoicePromptEditorProps {
   customPrompt: string;
   onPromptChange: (prompt: string) => void;
   isDisabled?: boolean;
 }
 
-export function PromptEditor({
+export function VoicePromptEditor({
   customPrompt,
   onPromptChange,
   isDisabled = false,
-}: PromptEditorProps) {
+}: VoicePromptEditorProps) {
   return (
     <div className="space-y-2">
       <Label className="text-sm font-medium text-foreground">
@@ -25,11 +25,10 @@ export function PromptEditor({
         onChange={(e) => onPromptChange(e.target.value)}
         disabled={isDisabled}
         className="min-h-[120px] bg-background border-border text-foreground resize-y"
-        placeholder="Enter custom instructions for the chatbot..."
+        placeholder="Enter custom instructions for the voice generation..."
       />
       <p className="text-xs text-muted-foreground">
-        The prompt will be automatically completed with context and question
-        placeholders if not included.
+        This prompt will guide how the AI summarizes and narrates your content.
       </p>
     </div>
   );

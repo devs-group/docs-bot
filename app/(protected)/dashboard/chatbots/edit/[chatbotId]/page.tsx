@@ -6,12 +6,11 @@ import { ArrowLeft } from "lucide-react";
 import { TabsInputChatbotForm } from "@/components/chatbot/TabsInputChatbotForm";
 import { Toaster } from "@/components/ui/sonner";
 
-export default function CreateChatbotPage() {
+export default function EditChatbotPage({ params }: { params: { chatbotId: string } }) {
   const router = useRouter();
 
-  const handleChatbotCreated = (chatbotId: string) => {
-    // Redirect to the dashboard after successful creation
-    console.log("Chatbot created with ID:", chatbotId);
+  const handleChatbotUpdated = () => {
+    // Redirect to the dashboard after successful update
     router.push("/dashboard");
   };
 
@@ -27,12 +26,15 @@ export default function CreateChatbotPage() {
           <ArrowLeft className="h-6 w-6" />
         </Button>
         <h1 className="text-3xl font-bold text-foreground">
-          Create New Chatbot
+          Edit Chatbot
         </h1>
       </div>
 
       <div className="p-1">
-        <TabsInputChatbotForm onChatbotCreated={handleChatbotCreated} />
+        <TabsInputChatbotForm 
+          existingChatbotId={params.chatbotId} 
+          onChatbotUpdated={handleChatbotUpdated} 
+        />
       </div>
 
       <Toaster />

@@ -31,7 +31,7 @@ async function extractTextFromURL(url: string): Promise<string> {
 }
 
 // Function to generate a summary of the content
-async function generateSummary(text: string, lengthInMinutes: number): Promise<string> {
+async function generateSummary(text: string, lengthInMinutes: number, customPrompt?: string): Promise<string> {
   const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 2000,
     chunkOverlap: 200,
@@ -49,17 +49,7 @@ async function generateSummary(text: string, lengthInMinutes: number): Promise<s
     temperature: 0.5,
   });
   
-  const prompt = `
-  Create a conversational summary of the following content. The summary should:
-  1. Be approximately ${targetWordCount} words (about ${lengthInMinutes} minute(s) when spoken)
-  2. Be engaging and natural-sounding for text-to-speech
-  3. Maintain a conversational tone as if explaining to a listener
-  4. Cover the most important points from the content
-  5. Include brief pauses and natural transitions and write always "we are ..." and in english
-  
-  Here's the content to summarize:
-  ${chunks.slice(0, 5).join("\n\n")}
-  `;
+  const prompt = `${customPrompt}\n\nTarget length: ${targetWordCount} words (about ${lengthInMinutes} minute(s) when spoken)\n\nContent to summarize:\n${chunks.slice(0, 5).join("\n\n")}`
   
   const response = await model.invoke(prompt);
   // Extract the text content from the AIMessageChunk
@@ -113,6 +103,9 @@ export async function POST(req: NextRequest) {
 
     // Extract length parameter
     const length = fields.length ? parseInt(String(fields.length)) : 1; // Default to 1 minute
+    
+    // Extract custom prompt if provided
+    const customPrompt = fields.customPrompt ? String(fields.customPrompt) : undefined;
 
     // Extract text from sources
     let combinedText = "";
@@ -126,8 +119,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generate summary based on the desired length
-    const summary = await generateSummary(combinedText, length);
+    // Generate summary based on the desired length and custom prompt
+    const summary = await generateSummary(combinedText, length, customPrompt);
     
     return NextResponse.json({
       summary,

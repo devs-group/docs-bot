@@ -63,7 +63,7 @@ export function ChatbotList() {
   };
 
   const navigateToEdit = (id: string) => {
-    router.push(`/dashboard/chatbots/${id}`);
+    router.push(`/dashboard/chatbots/edit/${id}`);
   };
 
   const formatDate = (dateString: string) => {
