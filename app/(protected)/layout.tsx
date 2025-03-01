@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { Button } from "@/components/ui/button";
+import LogoutButton from "@/components/LogoutButton";
 
 export default async function ProtectedLayout({
   children,
@@ -21,12 +21,7 @@ export default async function ProtectedLayout({
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
             {session?.user?.name ? `Hello, ${session.user.name}` : "Dashboard"}
           </h1>
-          <Button
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            Sign Out
-          </Button>
+          <LogoutButton />
         </div>
       </header>
 

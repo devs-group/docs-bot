@@ -7,6 +7,7 @@ import {
   vector,
   index,
   integer,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { InferModel } from "drizzle-orm";
 import { ChatbotChain, ChatbotConfig, ChatbotSource, VoiceContent } from "@/types/chatbot";
@@ -20,6 +21,8 @@ export type ChatbotData = InferModel<typeof chatbots> & {
 export type VoiceData = InferModel<typeof voices> & {
   source: ChatbotSource;
 };
+
+export type ApiKeyData = InferModel<typeof apiKeys>;
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -106,4 +109,17 @@ export const voices = pgTable("voices", {
   length: integer("length").notNull(),
   source: json("source").notNull().default("{}"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const apiKeys = pgTable("api_keys", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  key: text("key").notNull().unique(),
+  isActive: boolean("is_active").notNull().default(true),
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
 });

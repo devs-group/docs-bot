@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { MessageSquare, Mic } from "lucide-react";
+import { MessageSquare, Mic, Key } from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -43,6 +43,23 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      
+      <Card className="bg-card border-border shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            API Keys
+          </CardTitle>
+          <CardDescription>
+            Generate API keys to access your chatbots programmatically
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild className="w-full">
+            <Link href="/dashboard/api-keys">Manage API Keys</Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -43,6 +43,13 @@
       "when": 1740755621372,
       "tag": "0005_careful_warhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1740825283086,
+      "tag": "0006_rainy_jubilee",
+      "breakpoints": true
     }
   ]
 }

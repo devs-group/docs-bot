@@ -1,7 +1,10 @@
 import { NextResponse, NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getChatbot, getSourcesForChatbot } from "@/lib/storage";
 import { createChatBot, retrieveChatBot } from "@/lib/chatbot";
 import { ConversationalRetrievalQAChain } from "langchain/chains";
+import { verifyApiKey } from "@/lib/api-key";
 
 export async function POST(
   req: NextRequest,
@@ -9,6 +12,31 @@ export async function POST(
 ) {
   try {
     const { chatbotId } = await context.params;
+    
+    // Check for authentication - either session or API key
+    const session = await getServerSession(authOptions);
+    let userId = session?.user?.id;
+    
+    // If no session, check for API key in Authorization header
+    if (!userId) {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const apiKey = authHeader.substring(7); // Remove "Bearer " prefix
+        const validApiKey = await verifyApiKey(apiKey);
+        
+        if (validApiKey) {
+          userId = validApiKey.userId;
+        }
+      }
+    }
+    
+    // If still no userId, return unauthorized
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please provide a valid API key or log in." },
+        { status: 401 }
+      );
+    }
 
     const chatbot = await getChatbot(chatbotId);
     if (!chatbot) {
